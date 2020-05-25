@@ -1,0 +1,198 @@
+# hw6 lab report
+
+#----------------------------
+#writing tr2b.c using getchar
+#writing tr2u.c using read and write syscalls
+
+Using strace to compare the system calls issued by tr2b and tr2u.
+Make one big file containing 6000,000 bytes in it called bigfile.txt. This file\
+ can be generated with a python file with code:
+import random
+import string
+
+def randomString(stringLength=8):
+    letters = string.ascii_letters + string.digits
+    return ''.join(random.choice(letters) for i in range(stringLength))
+
+s = ''
+f = open("bigfile.txt","w")
+for i in range(1000):
+  s = s + randomString(6000)
+f.write(s)
+f.close()
+
+
+#(a)
+#copying one file to another
+using command [strace -o strace1 -c ./tr2b.exe "abc" "def" < bigfile.txt > result1]. This command saves the strace result to strace1 and output the transliterated string into result1.
+The strace1 file shows as follows:
+% time     seconds  usecs/call     calls    errors syscall
+------ ----------- ----------- --------- --------- ----------------
+ 69.25    0.001214           2       733           write
+ 30.75    0.000539           1       735           read
+  0.00    0.000000           0         2           open
+  0.00    0.000000           0         2           close
+  0.00    0.000000           0         4           fstat
+  0.00    0.000000           0         9           mmap
+  0.00    0.000000           0         4           mprotect
+  0.00    0.000000           0         1           munmap
+  0.00    0.000000           0         1           brk
+  0.00    0.000000           0         1         1 access
+  0.00    0.000000           0         1           execve
+  0.00    0.000000           0         1           arch_prctl
+------ ----------- ----------- --------- --------- ----------------
+100.00    0.001753                  1494         1 total
+
+It shows that the tr2b.c program uses 1494 syscalls.
+
+For tr2u.c, I used command [strace -o strace2 -c ./tr2u.exe "abc" "def" < bigfile.txt > result2]. The strace2:
+% time     seconds  usecs/call     calls    errors syscall
+------ ----------- ----------- --------- --------- ----------------
+ 54.77   32.376866           7   4797505           write
+ 45.23   26.734245           6   4797506           read
+  0.00    0.000041          10         4           mprotect
+  0.00    0.000023          23         1           munmap
+  0.00    0.000022           6         4           brk
+  0.00    0.000018           3         7           mmap
+  0.00    0.000006           6         1           arch_prctl
+  0.00    0.000000           0         2           open
+  0.00    0.000000           0         2           close
+  0.00    0.000000           0         2           fstat
+  0.00    0.000000           0         1         1 access
+  0.00    0.000000           0         1           execve
+------ ----------- ----------- --------- --------- ----------------
+100.00   59.111221               9595036         1 total
+
+It shows that tr2u.c uses 9595036 syscalls on these 6000,000 bytes, which is not as efficient as tr2b.c using stdio.h 's functions.
+
+#(b)
+Now copy file to terminal.
+For tr2b.c, I use command [strace -o strace3 -c ./tr2b.exe "abc" "def" < bigfile.txt]. This will print the transliterated file to the stdout. The strace3 is:
+% time     seconds  usecs/call     calls    errors syscall
+------ ----------- ----------- --------- --------- ----------------
+ 92.89    0.024143           4      5860           write
+  6.24    0.001623           2       735           read
+  0.28    0.000073           8         9           mmap
+  0.20    0.000051          13         4           mprotect
+  0.11    0.000029           7         4           fstat
+  0.09    0.000023          23         1           munmap
+  0.06    0.000015           8         2           open
+  0.04    0.000010           5         2           close
+  0.03    0.000007           7         1         1 access
+  0.03    0.000007           7         1           execve
+  0.02    0.000006           6         1           arch_prctl
+  0.01    0.000003           3         1           brk
+------ ----------- ----------- --------- --------- ----------------
+100.00    0.025990                  6621         1 total
+
+which means it used 6621 syscalls to perform the execution. The tr2b.c copying file to another file takes 1494 syscalls which is less than printing to stdout.
+
+Now use tr2u.c, with command [ strace -o strace4 -c ./tr2u.exe "abc" "def" < bigfile.txt]. The strace4 is :
+% time     seconds  usecs/call     calls    errors syscall
+------ ----------- ----------- --------- --------- ----------------
+ 57.11   46.908830           8   6000000           write
+ 42.89   35.235249           6   6000002           read
+  0.00    0.000082          12         7           mmap
+  0.00    0.000062          16         4           mprotect
+  0.00    0.000032           8         4           brk
+  0.00    0.000029          15         2           open
+  0.00    0.000024          12         2           fstat
+  0.00    0.000023          23         1           munmap
+  0.00    0.000014          14         1         1 access
+  0.00    0.000014          14         1           execve
+  0.00    0.000013           7         2           close
+  0.00    0.000007           7         1           arch_prctl
+------ ----------- ----------- --------- --------- ----------------
+100.00   82.144379              12000027         1 total
+
+The total syscall number is 12000027 which is higher than the 9595037 when printing to another file.
+
+#-----------------------------------------
+# check the two programs with time command
+
+#(a)
+For copying to another file, I used command [time ./tr2b.exe "abc" "efg" < bigfile.txt > result5]. The time outputs:
+real	0m0.686s
+user	0m0.582s
+sys	0m0.011s
+
+For the tr2u.c program, using command [time ./tr2u.exe "abc" "efg" < bigfile.txt > result6]. The result of the time is :
+real	0m14.913s
+user	0m4.057s
+sys	0m10.699s
+
+As we can see, the sys time for tr2u is much higher than that of tr2b. That make sense because when we use syscalls, and privilege switches are expensive.
+
+#(b)
+# Now we copy the output file to the stdout.
+
+For tr2b I used command [time ./tr2b.exe "abc" "efg" < bigfile.txt]. 
+real	0m7.349s
+user	0m0.694s
+sys	0m0.075s
+For tr2u I used command [time ./tr2u.exe "abc" "efg" < bigfile.txt]. 
+The result is :
+real	0m28.657s
+user	0m8.166s
+sys	0m20.430s
+
+Printing to stdout is more expensive than copying the output to another file. It takes more time because it need make more syscalls. 
+
+#below is the assignment part.
+# report for the assignment 6 analysis
+
+First generate files with 0, 100, 10000, 1000000 lines using a python code. Here I used file generator from https://gist.github.com/RobRoyce/cb72b419b8b391fc844a060b139e9767 by RobRoyce. 
+Then we first compare sfrobu.c and sfrob.c on an empty file. The comands are [time cat file0 | ./sfrobu.exe] and [time ./sfrob.exe < file0]. The results to each of the are:
+sfrobu.c:
+real	0m0.004s
+user	0m0.002s
+sys	0m0.004s
+sfrob.c:
+real	0m0.006s
+user	0m0.002s
+sys	0m0.004s
+For a zero-line file, the sfrobu program is faster.
+
+Now use both on 100-line file. The results are:
+sfrobu.c:
+real	0m0.151s
+user	0m0.042s
+sys	0m0.110s
+
+sfrob.c:
+real    0m0.015s
+user    0m0.012s
+sys     0m0.003s
+
+For a 100 line file, the sfrob program is faster.
+
+Now use both program on a 10000-line file. The results are:
+sfrobu:
+real	0m12.150s
+user	0m3.771s
+sys	0m8.396s
+
+sfrob:
+real	0m3.152s
+user	0m1.052s
+sys	0m0.126s
+
+For a 10000-line file, the sfrob program is faster again.
+
+Now use both program on a 1000000-line file. The results are:
+
+sfrobu:
+real	19m55.540s
+user	6m46.677s
+sys	13m10.029s
+sforb:
+real	2m44.746s
+user	1m44.955s
+sys	0m12.340s
+
+For the 1million-line file, the sfrob program is still faster, by about 10 times.
+When line number is small, below 100 lines, the time difference between these two sfrob and sfrobu are not much difference.
+However, as line number increase, sfrobu will take much longer time to run.
+The reason is that sfrob is buffered and sfrobu is unbuffered.
+The buffered program sfrob takes characters into the buffer and do the process while the unbuffered program
+sfrobu switches between the kernal and user which is very expensive on computing and memory. 
